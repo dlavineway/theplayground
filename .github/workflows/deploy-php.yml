@@ -3,9 +3,10 @@ name: Deploy to ThePlayground
 on:
   push:
     branches: [ "master" ]
+  workflow_dispatch: # Manual deploy trigger
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,39 +22,62 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --no-dev --optimize-autoloader
 
-      # Static lint check
       - name: PHP lint
-        run: |
-          find ./ -type f -name "*.php" -print0 | xargs -0 -n1 php -l
+        run: find ./ -type f -name "*.php" -print0 | xargs -0 -n1 php -l
 
-      # PHPUnit tests (optional)
       - name: Run tests
         if: ${{ hashFiles('phpunit.xml', 'phpunit.xml.dist') != '' }}
         run: vendor/bin/phpunit --colors=never
 
-      - name: Prepare build
+      - name: Prepare build folder
         run: |
-          mkdir build
-          rsync -av \
-            --exclude=".git" \
-            --exclude=".github" \
-            --exclude="build" \
-            ./ build/
+          mkdir -p build
+          rsync -av --exclude=".git" --exclude=".github" --exclude="build" ./ build/
 
-      - name: Dry-run deploy to theplayground.ws
-        uses: easingthemes/ssh-deploy@v5.0.0
+      # -------------------------
+      # DRY-RUN DEPLOY
+      # -------------------------
+      - name: Dry-run deploy via rsync
+        id: dryrun
+        run: |
+          echo "Starting dry-run..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          rsync -avz --delete --dry-run \
+            --exclude=".well-known" \
+            --exclude="cgi-bin" \
+            --exclude=".ftpquota" \
+            --exclude=".htaccess" \
+            -e "ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            build/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/cerberus/public_html/theplayground
+
+      # Optional: display dry-run output in PR (if PR)
+      - name: Comment on PR with dry-run output
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USER }}
-          REMOTE_PORT: ${{ secrets.SSH_PORT }}
-          TARGET: "/home/cerberus/public_html/theplayground"
-          SOURCE: "build/"
-          ARGS: "--dry-run --delete --verbose --filter=P .well-known/ --filter=P cgi-bin/ --filter=P .ftpquota --filter=P .htaccess"
-          EXCLUDE: |
-            .well-known
-            cgi-bin
-            .ftpquota
-            .htaccess
+          header: deploy-preview
+          message: |
+            **Dry-run deployment summary**
+            ```
+            ${{ steps.dryrun.outputs.stdout }}
+            ```
 
-
+      # -------------------------
+      # REAL DEPLOY (manual approval recommended)
+      # -------------------------
+      - name: Deploy via rsync
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Starting real deploy..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          rsync -avz --delete \
+            --exclude=".well-known" \
+            --exclude="cgi-bin" \
+            --exclude=".ftpquota" \
+            --exclude=".htaccess" \
+            -e "ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            build/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/cerberus/public_html/theplayground
