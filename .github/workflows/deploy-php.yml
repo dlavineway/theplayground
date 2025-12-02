@@ -50,6 +50,6 @@ jobs:
           TARGET: "/home/cerberus/public_html/theplayground"
           SOURCE: "build/"
           EXCLUDE: |
-            .well-known/
-            cgi-bin/
+            .well-known
+            cgi-bin
             .ftpquota
