@@ -1,0 +1,53 @@
+name: CI - PHP Tests & Deploy
+
+on:
+  push:
+    branches:
+      - master   # change to your deploy branch
+
+jobs:
+  test:
+    name: Run PHP tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, curl
+      - name: Install dependencies
+        run: composer install --no-progress --no-suggest --prefer-dist
+      - name: Run PHPUnit
+        uses: php-actions/phpunit@v4
+        with:
+          args: --testdox
+
+  deploy:
+    name: Deploy to server
+    needs: test
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start ssh-agent and add private key
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Create known_hosts entry
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      - name: Rsync files to server
+        run: |
+          rsync -avz --delete --exclude='.git' --exclude='tests' -e "ssh -p ${{ secrets.SSH_PORT }}" ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.TARGET_PATH }}
+      - name: Run remote deploy commands (migrations, clear cache, etc.)
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<'SSH_CMDS'
+            cd ${{ secrets.TARGET_PATH }}
+            # example: for Laravel:
+            # php artisan migrate --force
+            # php artisan config:cache
+            # chown -R cpaneluser:cpaneluser storage bootstrap/cache
+            exit
+          SSH_CMDS
