@@ -49,15 +49,11 @@ jobs:
           REMOTE_PORT: ${{ secrets.SSH_PORT }}
           TARGET: "/home/cerberus/public_html/theplayground"
           SOURCE: "build/"
-          ARGS: "--dry-run --delete --verbose --filter='.ssh-deploy-filter'"
+          ARGS: "--dry-run --delete --verbose --filter=P .well-known/ --filter=P cgi-bin/ --filter=P .ftpquota --filter=P .htaccess"
           EXCLUDE: |
             .well-known
             cgi-bin
             .ftpquota
             .htaccess
-          SCRIPT_BEFORE: |
-            echo "P .well-known/" > .ssh-deploy-filter
-            echo "P cgi-bin/" >> .ssh-deploy-filter
-            echo "P .ftpquota" >> .ssh-deploy-filter
-            echo "P .htaccess" >> .ssh-deploy-filter
+
 
