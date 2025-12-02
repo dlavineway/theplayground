@@ -1,3 +1,4 @@
 /vendor
 .env
 .ftpquota
+.DS_Store

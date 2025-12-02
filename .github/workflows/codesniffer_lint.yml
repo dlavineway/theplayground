@@ -1,0 +1,41 @@
+name: PHP CodeSniffer Lint
+
+on:
+  pull_request:
+    branches:
+      - master
+      - main
+      - release-features
+
+jobs:
+  lint_and_format:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Setup PHP Environment
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3' # Use your required PHP version
+          extensions: mbstring, pdo_mysql # Add extensions your project needs
+          tools: composer # Ensure Composer is available
+
+      # Install PHPCS (using Composer dependency)
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      # Run the CodeSniffer Check
+      # Note: We use the `vendor/bin/phpcs` command.
+      # The `--ignore=vendor` flag is the key to excluding that folder.
+      - name: Run PHP CodeSniffer
+        run: vendor/bin/phpcs --standard=PSR12 --ignore=vendor,node_modules --warning-severity=0 .
+
+      # Optional: Auto-Fix and Check for Diff (Recommended)
+      # This step ensures your code isn't just flagged, but fails if it wasn't fixed.
+      - name: Run Code Fixer and Check Diff
+        run: |
+          vendor/bin/phpcbf --standard=PSR12 --ignore=vendor,node_modules .
+          git diff --exit-code

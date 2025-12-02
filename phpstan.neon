@@ -1,0 +1,10 @@
+parameters:
+    excludePaths:
+        - vendor
+    level: 6
+    type_coverage:
+        return: 95
+        param: 95
+        property: 95
+        constant: 95
+    treatPhpDocTypesAsCertain: false
