@@ -40,7 +40,7 @@ jobs:
             --exclude="build" \
             ./ build/
 
-      - name: Deploy to theplayground.ws
+      - name: Dry-run deploy to theplayground.ws
         uses: easingthemes/ssh-deploy@v5.0.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -49,7 +49,9 @@ jobs:
           REMOTE_PORT: ${{ secrets.SSH_PORT }}
           TARGET: "/home/cerberus/public_html/theplayground"
           SOURCE: "build/"
+          ARGS: "--dry-run --delete"
           EXCLUDE: |
             .well-known
             cgi-bin
             .ftpquota
+            .htaccess
