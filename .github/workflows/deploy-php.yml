@@ -49,7 +49,7 @@ jobs:
           REMOTE_PORT: ${{ secrets.SSH_PORT }}
           TARGET: "/home/cerberus/public_html/theplayground"
           SOURCE: "build/"
-          ARGS: "--dry-run --delete --verbose"
+          ARGS: "--dry-run --delete --verbose --filter='P .well-known/' --filter='P cgi-bin/' --filter='P .ftpquota' --filter='P .htaccess'"
           EXCLUDE: |
             .well-known
             cgi-bin
